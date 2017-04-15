@@ -1,5 +1,7 @@
+# Simulation for this puzzle: https://twitter.com/FiveThirtyEight/status/853095538379509760/photo/1
 
-reps <- 10000
+# Save data
+reps <- 100000
 bench.party <- matrix(NA, ncol = 9, nrow = reps)
 bench.term <- matrix(NA, ncol = 9, nrow = reps)
 pct.filled <- matrix(NA, ncol = 9, nrow = reps)
@@ -7,8 +9,9 @@ appts <- matrix(NA, ncol = 9, nrow = reps)
 senparty <- rep(NA, reps)
 presparty <- rep(NA, reps)
 
-# Cycle through elections
+# Cycle through elections.
 for(i in 2:reps) {
+
   # Senate is reelected each election
   sen <- sample(c("D", "R"), size = 1, replace = TRUE, prob = c(0.5, 0.5))
   senparty[i] <- sen
@@ -21,15 +24,18 @@ for(i in 2:reps) {
   
   # Get the party of the judges and the terms from the last election
   term <- bench.term[(i -1), ]
-  # 2 Years have passed, so subtract 2 years from the term of the judges (if not NA)
+  
+  # 2 Years have passed, so subtract 2 years from the term of the judges (if not NA).
+  # This is the time they have left.
   term <- term - (365.25 * 2)
   term[term < 0] <- NA
   
+  # Replace the party of the judges.
   bench <- bench.party[(i-1), ] 
   bench[term < 0] <- NA
   
   # If both Senate and President are the same party, any vacancies are filled, and any
-  # new vacancies would be filled immediately.
+  # new vacancies would be filled immediately (let's assume).
   if (sen == pres) {
     num.appts <- ifelse(is.na(bench), 1, 0)
     bench[is.na(bench)] <- sen
@@ -40,6 +46,7 @@ for(i in 2:reps) {
     # are filled by justices for at least the next 2 years.
     while(any(term < (2 * 365.25))) {
       num.appts[term < (2 * 365.25) | is.na(term)] <- num.appts[term < (2 * 365.25) | is.na(term)] + 1
+      bench[term < (2 * 365.25)] <- sen
       
       term[term < (2 * 365.25)] <- term[term < (2 * 365.25)] + 
                                           runif(n = length(term[term < (2 * 365.25)]),
@@ -65,7 +72,7 @@ for(i in 2:reps) {
 
 pct.filled <- ifelse(is.na(pct.filled), 0, pct.filled)
 
-# How many seats are unfilled?
+# How often do seats go unfilled?
 prop.table(table(pct.filled[2:nrow(pct.filled), ] == 1))
-
-
+any.unfilled <- rowSums(as.data.frame(pct.filled[2:nrow(pct.filled), ]))
+prop.table(table(any.unfilled == 9))
