@@ -1,0 +1,71 @@
+
+reps <- 10000
+bench.party <- matrix(NA, ncol = 9, nrow = reps)
+bench.term <- matrix(NA, ncol = 9, nrow = reps)
+pct.filled <- matrix(NA, ncol = 9, nrow = reps)
+appts <- matrix(NA, ncol = 9, nrow = reps)
+senparty <- rep(NA, reps)
+presparty <- rep(NA, reps)
+
+# Cycle through elections
+for(i in 2:reps) {
+  # Senate is reelected each election
+  sen <- sample(c("D", "R"), size = 1, replace = TRUE, prob = c(0.5, 0.5))
+  senparty[i] <- sen
+  
+  # President is reelected every 4 years (every other senate election).
+  if (i%%2 == 0) {
+    pres <- sample(c("D", "R"), size = 1, replace = TRUE, prob = c(0.5, 0.5))
+  }
+  presparty[i] <- pres
+  
+  # Get the party of the judges and the terms from the last election
+  term <- bench.term[(i -1), ]
+  # 2 Years have passed, so subtract 2 years from the term of the judges (if not NA)
+  term <- term - (365.25 * 2)
+  term[term < 0] <- NA
+  
+  bench <- bench.party[(i-1), ] 
+  bench[term < 0] <- NA
+  
+  # If both Senate and President are the same party, any vacancies are filled, and any
+  # new vacancies would be filled immediately.
+  if (sen == pres) {
+    num.appts <- ifelse(is.na(bench), 1, 0)
+    bench[is.na(bench)] <- sen
+    term[is.na(term)] <- runif(n = length(term[is.na(term)]), min = 0, max = 40*365.25)
+    
+    # If term is less than 2 years, another justice will be assigned. That new justice will have
+    # a term uniformly distributed between 0 and 40 years. Keep going with this, until all seats
+    # are filled by justices for at least the next 2 years.
+    while(any(term < (2 * 365.25))) {
+      num.appts[term < (2 * 365.25) | is.na(term)] <- num.appts[term < (2 * 365.25) | is.na(term)] + 1
+      
+      term[term < (2 * 365.25)] <- term[term < (2 * 365.25)] + 
+                                          runif(n = length(term[term < (2 * 365.25)]),
+                                                min = 0, 
+                                                max = (40*365.25))
+    }
+    pct.filled[i, ] <- rep(1, 9)
+    appts[i, ] <- num.appts
+    
+  }
+  
+  # If the Senate and President are of different parties, determine what percent of the term the seat 
+  # was filled.  Fill appts with 0.
+  if (sen != pres) {
+    pct.filled[i, ] <- ifelse(term < (2 * 365.25), term / (2 * 365.25), 1)
+    appts[i, ] <- rep(0, 9)
+  }
+  
+  # Save the bench party and term length after each term for each seat.
+  bench.party[i, ] <- bench
+  bench.term[i, ] <- term
+}
+
+pct.filled <- ifelse(is.na(pct.filled), 0, pct.filled)
+
+# How many seats are unfilled?
+prop.table(table(pct.filled[2:nrow(pct.filled), ] == 1))
+
+
